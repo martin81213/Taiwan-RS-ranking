@@ -25,7 +25,7 @@ html { scroll-behavior: smooth; }
 body { background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: 14px; min-height: 100vh; }
 
 /* ── NAV ── */
-nav { display: flex; align-items: center; gap: 24px; padding: 0 24px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+nav { display: flex; align-items: center; gap: 24px; padding: 0 24px; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); }
 .nav-logo { font-family: var(--font-num); font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: .5px; white-space: nowrap; }
 .nav-links { display: flex; gap: 4px; flex: 1; }
 .nav-links a { color: var(--text2); text-decoration: none; padding: 6px 12px; border-radius: var(--radius); font-size: 13px; transition: all .15s; white-space: nowrap; }
@@ -72,7 +72,7 @@ nav { display: flex; align-items: center; gap: 24px; padding: 0 24px; height: 52
 .tab-content.active { display: block; }
 .table-wrap { overflow-x: auto; padding: 0 24px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-thead th { background: var(--bg2); color: var(--text3); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 52px; }
+thead th { background: var(--bg2); color: var(--text3); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; }
 thead th:hover { color: var(--text2); }
 thead th.sorted { color: var(--accent); }
 thead th .sort-icon { margin-left: 3px; opacity: .5; }

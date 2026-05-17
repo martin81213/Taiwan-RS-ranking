@@ -6,7 +6,7 @@
 計算 RS Score、RS Line、SEPA 條件
 輸出 docs/rs_data.json（供 GitHub Pages 使用）
 
-RS Score = Q1×40% + Q2×20% + Q3×20% + Q4×20%
+RS Score = Q1×50% + Q2×25% + Q3×15% + Q4×10%
 """
 
 import yfinance as yf
@@ -176,7 +176,7 @@ def calc_rs_raw(s: pd.Series, b: pd.Series) -> dict | None:
     q3s = qpct(s, -126, -189); q3b_ = qpct(b, -126, -189)
     q4s = qpct(s, -189, -252); q4b_ = qpct(b, -189, -252)
 
-    raw = q1s*0.4 + q2s*0.2 + q3s*0.2 + q4s*0.2
+    raw = q1s*0.5 + q2s*0.25 + q3s*0.15 + q4s*0.10
 
     c1  = safe_pct(s.iloc[-1], s.iloc[-2])  if len(s) >= 2  else 0.0
     c5  = safe_pct(s.iloc[-1], s.iloc[-6])  if len(s) >= 6  else 0.0
