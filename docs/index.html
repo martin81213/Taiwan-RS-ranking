@@ -776,13 +776,39 @@ function bindEvents() {
 function exportTV() {
   const rs90 = stocks.filter(s => s.rs >= 90).sort((a, b) => b.rs - a.rs);
   if (!rs90.length) { alert('目前沒有 RS≥90 的股票'); return; }
-  const symbols = rs90.map(s => `TWSE:${s.code}`).join(',');
-  const date = new Date().toISOString().slice(0, 10);
-  const blob = new Blob([symbols], { type: 'text/plain' });
+  const today = new Date().toISOString().slice(0, 10);
+
+  // 第一行：TradingView 匯入格式
+  const tvLine = rs90.map(s => `TWSE:${s.code}`).join(',');
+
+  // 依板塊分組
+  const bySector = {};
+  rs90.forEach(s => {
+    if (!bySector[s.sector]) bySector[s.sector] = [];
+    bySector[s.sector].push(s);
+  });
+
+  const sectorLines = Object.entries(bySector)
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([sector, list]) => {
+      const rows = list.map(s => `  ${s.code}  ${s.name.padEnd(12)}  RS: ${s.rs}`).join('\n');
+      return `\n【${sector}】（${list.length} 檔）\n${rows}`;
+    }).join('\n');
+
+  const content = [
+    `# RS≥90 清單 | ${today} | 共 ${rs90.length} 檔`,
+    `# TradingView 匯入格式（複製下方第一行貼入 TV Watchlist）`,
+    tvLine,
+    ``,
+    `# ── 依板塊分類 ──────────────────────────`,
+    sectorLines,
+  ].join('\n');
+
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `rs90_watchlist_${date}.txt`;
+  a.download = `rs90_watchlist_${today}.txt`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

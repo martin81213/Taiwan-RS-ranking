@@ -13,7 +13,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import requests
-import json, time, sys, warnings, argparse, pickle, threading
+import json, time, sys, warnings, argparse, pickle, threading, re
 from datetime import datetime, timezone, timedelta, date
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
@@ -113,23 +113,28 @@ def fetch_twse_listed() -> list[dict]:
     current_sector = "其他"
 
     for _, row in df.iterrows():
-        cell = str(row.iloc[0]).strip()
+        cell0 = str(row.iloc[0]).strip()
+        cell1 = str(row.iloc[1]).strip() if len(row) > 1 else ""
 
-        # 股票列格式：「XXXX　公司名稱」（含全形空白）
-        # 產業標頭列：純文字，不含全形空白
-        if "\u3000" not in cell:
+        # 股票列的第 2 欄是 ISIN 碼（格式：TW + 10 碼數字，例如 TW0002330008）
+        # 產業標頭列的第 2 欄是空白或 nan
+        if not re.match(r'^TW\w{10}$', cell1):
+            # 不是股票列 → 嘗試更新產業分類
             for key, val in SECTOR_MAP.items():
-                if key in cell:
+                if key in cell0:
                     current_sector = val
                     break
             continue
 
-        # 格式：「XXXX　公司名稱」
-        parts = cell.split("\u3000")  # 全形空白
+        # 格式：「XXXX　公司名稱」（全形空白分隔）
+        parts = cell0.split("\u3000")
         if len(parts) < 2:
-            continue
-        code = parts[0].strip()
-        name = parts[1].strip()
+            # fallback：直接從 cell0 取前 4 字元
+            code = cell0[:4].strip()
+            name = cell0[4:].strip()
+        else:
+            code = parts[0].strip()
+            name = parts[1].strip()
 
         # 只保留 4 位數字股票代號（普通股），排除 ETF、特別股
         if not code.isdigit() or len(code) != 4:
