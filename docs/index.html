@@ -773,6 +773,20 @@ function bindEvents() {
   });
 }
 
+const SECTOR_EMOJI = {
+  '半導體':     '⚙️ ', '電腦/週邊':  '🖥️ ', '光電':       '💡',
+  '通信網路':   '🌐', '電子零組件': '🔧', '電子通路':   '🛒',
+  '資訊服務':   '💻', '其他電子':   '📱', '化學':       '🧪',
+  '生技醫療':   '🏥', '鋼鐵':       '🔩', '橡膠':       '⭕',
+  '玻璃陶瓷':   '🔮', '造紙':       '📄', '食品':       '🍎',
+  '紡織纖維':   '🧵', '電機機械':   '⚙️ ', '電器電纜':   '🔌',
+  '汽車':       '🚗', '建材營造':   '🏗️ ', '航運':       '🚢',
+  '觀光餐旅':   '🏨', '金融保險':   '🏦', '貿易百貨':   '🏪',
+  '油電燃氣':   '⛽', '綠能環保':   '🌱', '數位雲端':   '☁️ ',
+  '運動休閒':   '🏃', '居家生活':   '🏠', '文化創意':   '🎨',
+  '其他':       '📦',
+};
+
 function exportTV() {
   const rs90 = stocks.filter(s => s.rs >= 90).sort((a, b) => b.rs - a.rs);
   if (!rs90.length) { alert('目前沒有 RS≥90 的股票'); return; }
@@ -790,17 +804,12 @@ function exportTV() {
   const sectorBlocks = Object.entries(bySector)
     .sort((a, b) => b[1][0].rs - a[1][0].rs)
     .map(([sec, list]) => {
-      const tvSymbols = list.map(s => `TWSE:${s.code}`).join(',');
-      return `###${sec}\n${tvSymbols}`;
+      const emoji = SECTOR_EMOJI[sec] || '📌';
+      const symbols = list.map(s => `TWSE:${s.code}`).join('\n');
+      return `###${emoji} ${sec}\n${symbols}`;
     }).join('\n\n');
 
-  const content = [
-    `# RS≥90 清單 | ${today} | 共 ${rs90.length} 檔`,
-    `# 全部符號（貼入 TradingView Watchlist）`,
-    rs90.map(s => `TWSE:${s.code}`).join(','),
-    ``,
-    sectorBlocks,
-  ].join('\n');
+  const content = [sectorBlocks].join('\n');
 
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
