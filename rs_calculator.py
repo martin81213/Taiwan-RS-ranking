@@ -17,7 +17,6 @@ import json, time, sys, warnings, argparse, pickle, threading, re
 from datetime import datetime, timezone, timedelta, date
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
-from io import StringIO
 
 warnings.filterwarnings("ignore")
 
@@ -93,58 +92,40 @@ SECTOR_MAP = {
 # ════════════════════════════════════════════════════════════════
 def fetch_twse_listed() -> list[dict]:
     """
-    從 TWSE ISIN 頁面抓取所有上市普通股清單
+    從 TWSE OpenAPI 抓取上市普通股清單（JSON 格式，不需解析 HTML）
+    API：https://openapi.twse.com.tw/v1/opendata/t187ap03_L
     回傳 [{"code": "2330", "name": "台積電", "sector": "半導體"}, ...]
     """
-    url = "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    url = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
+    headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
 
-    print("  📡 連線至台灣證券交易所...")
+    print("  📡 連線至 TWSE OpenAPI...")
     try:
         resp = requests.get(url, headers=headers, timeout=30)
-        resp.encoding = "big5"
-        tables = pd.read_html(StringIO(resp.text))
-        df = tables[0]
+        resp.raise_for_status()
+        data = resp.json()
     except Exception as e:
-        print(f"  ❌ 抓取失敗：{e}")
+        print(f"  ❌ OpenAPI 抓取失敗：{e}")
         sys.exit(1)
 
     stocks = []
-    current_sector = "其他"
+    for item in data:
+        code     = str(item.get("公司代號", "")).strip()
+        name     = str(item.get("公司簡稱", "")).strip()
+        industry = str(item.get("產業別",   "")).strip()
 
-    for _, row in df.iterrows():
-        cell0 = str(row.iloc[0]).strip()
-        cell1 = str(row.iloc[1]).strip() if len(row) > 1 else ""
-
-        # 股票列的第 2 欄是 ISIN 碼（格式：TW + 10 碼數字，例如 TW0002330008）
-        # 產業標頭列的第 2 欄是空白或 nan
-        if not re.match(r'^TW\w{10}$', cell1):
-            # 不是股票列 → 嘗試更新產業分類
-            for key, val in SECTOR_MAP.items():
-                if key in cell0:
-                    current_sector = val
-                    break
-            continue
-
-        # 格式：「XXXX　公司名稱」（全形空白分隔）
-        parts = cell0.split("\u3000")
-        if len(parts) < 2:
-            # fallback：直接從 cell0 取前 4 字元
-            code = cell0[:4].strip()
-            name = cell0[4:].strip()
-        else:
-            code = parts[0].strip()
-            name = parts[1].strip()
-
-        # 只保留 4 位數字股票代號（普通股），排除 ETF、特別股
+        # 只保留 4 位數字股票代號（普通股），排除 ETF、KY 股等特殊格式
         if not code.isdigit() or len(code) != 4:
             continue
 
-        stocks.append({
-            "code": code,
-            "name": name,
-            "sector": current_sector,
-        })
+        # 依 SECTOR_MAP 對應板塊（部分比對）
+        sector = "其他"
+        for key, val in SECTOR_MAP.items():
+            if key in industry:
+                sector = val
+                break
+
+        stocks.append({"code": code, "name": name, "sector": sector})
 
     print(f"  ✓ 取得 {len(stocks)} 檔上市普通股")
     return stocks
