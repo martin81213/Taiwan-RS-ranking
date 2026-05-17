@@ -13,11 +13,17 @@ on:
         default: "12"
         required: false
 
+permissions:
+  contents: write   # 允許 commit rs_data.json 回 repo
+  pages: write      # 允許部署 GitHub Pages
+  id-token: write   # 官方部署必要
+
 jobs:
   calculate-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write   # 允許 commit rs_data.json 回 repo
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────
@@ -54,11 +60,13 @@ jobs:
             git commit -m "🤖 RS 排行更新 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
           git push
 
-      # ── 6. Deploy GitHub Pages ────────────────────────────────
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      # ── 6. 上傳 Pages Artifact ────────────────────────────────
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          # 保留舊版 rs_data.json（萬一新版計算失敗）
-          keep_files: true
+          path: ./docs
+
+      # ── 7. Deploy GitHub Pages（官方方式）────────────────────
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
