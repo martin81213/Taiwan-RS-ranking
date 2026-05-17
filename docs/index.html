@@ -778,30 +778,28 @@ function exportTV() {
   if (!rs90.length) { alert('目前沒有 RS≥90 的股票'); return; }
   const today = new Date().toISOString().slice(0, 10);
 
-  // 第一行：TradingView 匯入格式
-  const tvLine = rs90.map(s => `TWSE:${s.code}`).join(',');
-
-  // 依板塊分組
+  // 依 TWSE 官方板塊分組，板塊內依 RS 高到低
   const bySector = {};
   rs90.forEach(s => {
-    if (!bySector[s.sector]) bySector[s.sector] = [];
-    bySector[s.sector].push(s);
+    const sec = s.sector || '其他';
+    if (!bySector[sec]) bySector[sec] = [];
+    bySector[sec].push(s);
   });
 
-  const sectorLines = Object.entries(bySector)
-    .sort((a, b) => b[1].length - a[1].length)
-    .map(([sector, list]) => {
-      const rows = list.map(s => `  ${s.code}  ${s.name.padEnd(12)}  RS: ${s.rs}`).join('\n');
-      return `\n【${sector}】（${list.length} 檔）\n${rows}`;
-    }).join('\n');
+  // 板塊依「最高 RS」排序（強勢板塊在前）
+  const sectorBlocks = Object.entries(bySector)
+    .sort((a, b) => b[1][0].rs - a[1][0].rs)
+    .map(([sec, list]) => {
+      const tvSymbols = list.map(s => `TWSE:${s.code}`).join(',');
+      return `###${sec}\n${tvSymbols}`;
+    }).join('\n\n');
 
   const content = [
     `# RS≥90 清單 | ${today} | 共 ${rs90.length} 檔`,
-    `# TradingView 匯入格式（複製下方第一行貼入 TV Watchlist）`,
-    tvLine,
+    `# 全部符號（貼入 TradingView Watchlist）`,
+    rs90.map(s => `TWSE:${s.code}`).join(','),
     ``,
-    `# ── 依板塊分類 ──────────────────────────`,
-    sectorLines,
+    sectorBlocks,
   ].join('\n');
 
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
