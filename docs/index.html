@@ -7,15 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #100c06; --bg2: #1c1409; --bg3: #271d0e;
-  --border: #3d2d18; --border2: #5c4225;
-  --text: #f5e6d0; --text2: #c4a882; --text3: #7a6248;
-  --accent: #f59e0b; --accent2: #d97706;
+  --bg: #0b0f1a; --bg2: #111827; --bg3: #1a2235;
+  --border: #1f2d45; --border2: #2a3f5f;
+  --text: #e2e8f5; --text2: #8899b4; --text3: #4a5d7a;
+  --accent: #06b6d4; --accent2: #0891b2;
   --pos: #10b981; --pos2: #059669; --pos-bg: rgba(16,185,129,.12);
   --neg: #f43f5e; --neg2: #e11d48; --neg-bg: rgba(244,63,94,.12);
   --rs90: #00ff88; --rs80: #10b981; --rs70: #86efac;
-  --rs50: #78716c; --rs30: #f97316; --rs0: #f43f5e;
-  --gold: #f59e0b; --blue: #fb923c;
+  --rs50: #64748b; --rs30: #f97316; --rs0: #f43f5e;
+  --gold: #f59e0b; --blue: #3b82f6;
   --font-num: 'JetBrains Mono', monospace;
   --font-ui: 'Noto Sans TC', sans-serif;
   --radius: 6px; --radius-lg: 10px;
@@ -239,9 +239,9 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
     <span class="ctrl-label">市值：</span>
     <div class="pill-group" id="cap-filter">
       <button class="pill active" data-cap="all">全部</button>
-      <button class="pill" data-cap="大">大 ≥3000億</button>
-      <button class="pill" data-cap="中">中 600億–3000億</button>
-      <button class="pill" data-cap="小">小 &lt;600億</button>
+      <button class="pill" data-cap="大">大 ≥1000億</button>
+      <button class="pill" data-cap="中">中 100億–1000億</button>
+      <button class="pill" data-cap="小">小 &lt;100億</button>
     </div>
   </div>
   <div class="ctrl-sep"></div>
@@ -281,6 +281,7 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
           <th data-col="name">名稱</th>
           <th data-col="rs" class="sorted">RS Score <span class="sort-icon">↓</span></th>
           <th data-col="rsHigh">RS Line</th>
+          <th data-col="price" style="text-align:right">收盤價 <span class="sort-icon">↕</span></th>
           <th data-col="q1" style="text-align:right">Q1 <span class="sort-icon">↕</span></th>
           <th data-col="q2" style="text-align:right">Q2 <span class="sort-icon">↕</span></th>
           <th data-col="q3" style="text-align:right">Q3 <span class="sort-icon">↕</span></th>
@@ -288,7 +289,6 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
           <th data-col="c1" style="text-align:right">1日 <span class="sort-icon">↕</span></th>
           <th data-col="c5" style="text-align:right">5日 <span class="sort-icon">↕</span></th>
           <th data-col="c1m" style="text-align:right">1月 <span class="sort-icon">↕</span></th>
-          <th data-col="price" style="text-align:right">收盤價 <span class="sort-icon">↕</span></th>
           <th>市值</th>
           <th data-col="sector">板塊</th>
         </tr>
@@ -588,6 +588,7 @@ function renderTable() {
         </div>
       </td>
       <td style="text-align:center">${s.rsHigh?`<span class="tag-high">◆ 52W新高</span>`:`<span class="tag-dash">—</span>`}</td>
+      <td class="td-num" style="color:var(--text)">${s.price != null ? s.price.toFixed(2) : '—'}</td>
       <td class="td-num">${pct(s.q1)}</td>
       <td class="td-num">${pct(s.q2)}</td>
       <td class="td-num">${pct(s.q3)}</td>
@@ -595,7 +596,6 @@ function renderTable() {
       <td class="td-num">${pct(s.c1)}</td>
       <td class="td-num">${pct(s.c5)}</td>
       <td class="td-num">${pct(s.c1m)}</td>
-      <td class="td-num" style="color:var(--text)">${s.price != null ? s.price.toFixed(2) : '—'}</td>
       <td>${capBadge(s.cap)}</td>
       <td class="td-sector">${s.sector}</td>
     </tr>`;

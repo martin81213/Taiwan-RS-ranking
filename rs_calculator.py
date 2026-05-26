@@ -129,7 +129,13 @@ def fetch_twse_listed() -> list[dict]:
                 sector = val
                 break
 
-        stocks.append({"code": code, "name": name, "sector": sector})
+        # 已發行股數（股）→ 搭配收盤價算市值
+        try:
+            shares = int(str(item.get("已發行普通股數或TDR原股發行股數", "0")).replace(",", ""))
+        except ValueError:
+            shares = 0
+
+        stocks.append({"code": code, "name": name, "sector": sector, "shares": shares})
 
     print(f"  ✓ 取得 {len(stocks)} 檔上市普通股")
     return stocks
@@ -299,11 +305,20 @@ def process_stock(stock: dict, bench: pd.Series, verbose: bool = False) -> dict 
 
     time.sleep(SLEEP)
 
+    shares = stock.get("shares", 0)
+    if shares and rs_data["price"] > 0:
+        mc = shares * rs_data["price"]   # 市值（元）
+        if mc >= 100e9:   cap = "大"     # ≥ 1000億
+        elif mc >= 10e9:  cap = "中"     # ≥ 100億
+        else:             cap = "小"
+    else:
+        cap = "—"
+
     return dict(
         code    = code,
         name    = stock["name"],
         sector  = stock["sector"],
-        cap     = stock.get("cap", "—"),
+        cap     = cap,
         rs_raw  = rs_data["rs_raw"],
         q1=rs_data["q1"], q2=rs_data["q2"],
         q3=rs_data["q3"], q4=rs_data["q4"],
