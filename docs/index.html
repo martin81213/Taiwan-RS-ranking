@@ -262,6 +262,7 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
           <th data-col="c1" style="text-align:right">1日 <span class="sort-icon">↕</span></th>
           <th data-col="c5" style="text-align:right">5日 <span class="sort-icon">↕</span></th>
           <th data-col="c1m" style="text-align:right">1月 <span class="sort-icon">↕</span></th>
+          <th data-col="price" style="text-align:right">收盤價 <span class="sort-icon">↕</span></th>
           <th>市值</th>
           <th data-col="sector">板塊</th>
         </tr>
@@ -289,6 +290,7 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
           <th style="text-align:right">Q4</th>
           <th style="text-align:right">1日</th>
           <th style="text-align:right">1月</th>
+          <th style="text-align:right">收盤價</th>
           <th>SEPA 條件</th>
           <th>板塊</th>
         </tr>
@@ -567,6 +569,7 @@ function renderTable() {
       <td class="td-num">${pct(s.c1)}</td>
       <td class="td-num">${pct(s.c5)}</td>
       <td class="td-num">${pct(s.c1m)}</td>
+      <td class="td-num" style="color:var(--text)">${s.price != null ? s.price.toFixed(2) : '—'}</td>
       <td>${capBadge(s.cap)}</td>
       <td class="td-sector">${s.sector}</td>
     </tr>`;
@@ -618,6 +621,7 @@ function renderSEPA() {
       <td class="td-num">${pct(s.q4)}</td>
       <td class="td-num">${pct(s.c1)}</td>
       <td class="td-num">${pct(s.c1m)}</td>
+      <td class="td-num" style="color:var(--text)">${s.price != null ? s.price.toFixed(2) : '—'}</td>
       <td style="max-width:300px">${crits}</td>
       <td class="td-sector">${s.sector}</td>
     </tr>`;
