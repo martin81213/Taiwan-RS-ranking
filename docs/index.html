@@ -549,9 +549,12 @@ function renderTable() {
 
   document.getElementById('result-count').textContent = `共 ${total} 檔`;
 
+  const allByRS = [...stocks].sort((a,b) => b.rs - a.rs);
+  const rankMap = new Map(allByRS.map((s, i) => [s.code, i + 1]));
+
   const tbody = document.getElementById('rs-tbody');
-  tbody.innerHTML = slice.map((s, i) => {
-    const rank = (page-1)*PER_PAGE + i + 1;
+  tbody.innerHTML = slice.map((s) => {
+    const rank = rankMap.get(s.code);
     return `<tr>
       <td class="td-rank">${rank}</td>
       <td class="td-code"><a href="${tvLink(s.code)}" target="_blank">${s.code}</a></td>
