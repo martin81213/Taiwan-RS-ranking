@@ -5,6 +5,14 @@ on:
   schedule:
     - cron: "35 8 * * 1-5"   # 週一至週五
 
+  # 推送到 master 自動觸發
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
   # 手動觸發（方便測試）
   workflow_dispatch:
     inputs:

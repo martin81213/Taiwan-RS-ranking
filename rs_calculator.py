@@ -9,6 +9,7 @@
 RS Score = Q1×50% + Q2×25% + Q3×15% + Q4×10%
 """
 
+import os
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -110,12 +111,6 @@ def fetch_twse_listed() -> list[dict]:
     except Exception as e:
         print(f"  ❌ OpenAPI 抓取失敗：{e}")
         sys.exit(1)
-
-    # ── Debug：印出前 3 筆，確認欄位名稱與產業別格式 ────────────
-    if data:
-        print(f"  [DEBUG] 欄位: {list(data[0].keys())}")
-        for item in data[:3]:
-            print(f"  [DEBUG] 範例: {item}")
 
     stocks = []
     for item in data:
@@ -350,51 +345,38 @@ def build_sectors(results: list[dict]) -> list[dict]:
 
 
 # ════════════════════════════════════════════════════════════════
-#  主程式
+#  主程式輔助函式
 # ════════════════════════════════════════════════════════════════
-def main():
+def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--workers",  type=int, default=WORKERS)
-    parser.add_argument("--output",   type=str, default=OUTPUT_FILE)
-    parser.add_argument("--verbose",  action="store_true")
-    args = parser.parse_args()
+    parser.add_argument("--workers", type=int, default=WORKERS)
+    parser.add_argument("--output",  type=str, default=OUTPUT_FILE)
+    parser.add_argument("--verbose", action="store_true")
+    return parser.parse_args()
 
-    tw_tz = timezone(timedelta(hours=8))
-    now   = datetime.now(tw_tz)
 
-    print("=" * 62)
-    print("  台股全市場 Minervini RS 計算器")
-    print(f"  {now.strftime('%Y-%m-%d %H:%M')} (台灣時間)")
-    print("=" * 62)
-
-    # ── 快取載入 ─────────────────────────────────────────────
-    print(f"\n▶ [0/4] 載入收盤價快取...")
-    load_price_cache()
-
-    # ── 基準指數 ─────────────────────────────────────────────
+def load_benchmark() -> pd.Series:
     print(f"\n▶ [1/4] 下載基準指數 {BENCHMARK}...")
     bench = download_close(BENCHMARK)
     if bench is None:
         print("  ❌ 無法下載加權指數，中止")
         sys.exit(1)
     print(f"  ✓ {len(bench)} 筆交易日資料")
+    return bench
 
-    # ── 抓上市公司清單 ────────────────────────────────────────
-    print(f"\n▶ [2/4] 抓取上市公司清單...")
-    stocks = fetch_twse_listed()
 
-    # ── 並行計算 ──────────────────────────────────────────────
-    print(f"\n▶ [3/4] 計算 RS（{len(stocks)} 檔 × {args.workers} 執行緒）...")
-    print(f"  預估時間：約 {int(len(stocks) * SLEEP / args.workers / 60) + 1} 分鐘\n")
+def run_parallel(stocks: list[dict], bench: pd.Series,
+                 workers: int, verbose: bool) -> list[dict]:
+    print(f"\n▶ [3/4] 計算 RS（{len(stocks)} 檔 × {workers} 執行緒）...")
+    print(f"  預估時間：約 {int(len(stocks) * SLEEP / workers / 60) + 1} 分鐘\n")
 
     raw_results = []
-    done = 0
-    failed = 0
+    done = failed = 0
     start_time = time.time()
 
-    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
-            executor.submit(process_stock, s, bench, args.verbose): s
+            executor.submit(process_stock, s, bench, verbose): s
             for s in stocks
         }
         for future in as_completed(futures):
@@ -405,11 +387,10 @@ def main():
             else:
                 failed += 1
 
-            # 進度列
-            pct  = done / len(stocks) * 100
-            bar  = "█" * int(pct / 5) + "░" * (20 - int(pct / 5))
+            pct     = done / len(stocks) * 100
+            bar     = "█" * int(pct / 5) + "░" * (20 - int(pct / 5))
             elapsed = time.time() - start_time
-            eta = elapsed / done * (len(stocks) - done) if done > 0 else 0
+            eta     = elapsed / done * (len(stocks) - done) if done > 0 else 0
             print(f"  [{bar}] {pct:4.0f}%  {done}/{len(stocks)}  "
                   f"成功:{len(raw_results)}  失敗:{failed}  "
                   f"ETA:{int(eta//60)}:{int(eta%60):02d}",
@@ -417,20 +398,11 @@ def main():
 
     elapsed_total = time.time() - start_time
     print(f"\n\n  ✓ 完成，耗時 {int(elapsed_total//60)}分{int(elapsed_total%60)}秒")
+    return raw_results
 
-    # ── 儲存快取 ─────────────────────────────────────────────
-    save_price_cache()
-    print(f"  ✓ 快取已儲存：{len(_price_cache)} 支股票")
 
-    if not raw_results:
-        print("  ❌ 沒有任何成功結果，中止")
-        sys.exit(1)
-
-    # ── 百分位換算 + SEPA 判定 ────────────────────────────────
-    print(f"\n▶ [4/4] 換算百分位、判定 SEPA...")
-
+def finalize_results(raw_results: list[dict]) -> list[dict]:
     pcts = raw_to_percentile([r["rs_raw"] for r in raw_results])
-
     final = []
     for r, rs in zip(raw_results, pcts):
         r["rs"] = rs
@@ -438,23 +410,19 @@ def main():
         other = [v for k, v in r["sepa_detail"].items() if k != "rs70"]
         r["sepa"] = r["sepa_detail"]["rs70"] and sum(other) >= 4
         final.append(r)
-
     final.sort(key=lambda x: x["rs"], reverse=True)
+    return final
 
-    # ── 板塊彙整 ─────────────────────────────────────────────
-    sectors = build_sectors(final)
 
-    # ── 統計 ─────────────────────────────────────────────────
-    rs90  = sum(1 for r in final if r["rs"] >= 90)
-    rs70  = sum(1 for r in final if r["rs"] >= 70)
+def write_output(final: list[dict], sectors: list[dict],
+                 now: datetime, output_path: str):
+    rs90   = sum(1 for r in final if r["rs"] >= 90)
+    rs70   = sum(1 for r in final if r["rs"] >= 70)
     sepa_n = sum(1 for r in final if r["sepa"])
     high_n = sum(1 for r in final if r["rsHigh"])
     top    = final[0] if final else {}
 
-    # ── 輸出 JSON ────────────────────────────────────────────
-    import os
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-
     output = dict(
         updated_at = now.strftime("%Y-%m-%d %H:%M"),
         total      = len(final),
@@ -462,11 +430,10 @@ def main():
         stocks     = final,
         sectors    = sectors,
     )
-    with open(args.output, "w", encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, separators=(",", ":"))
 
-    size_kb = os.path.getsize(args.output) / 1024
-
+    size_kb = os.path.getsize(output_path) / 1024
     print(f"""
   ╔══════════════════════════════════════╗
   ║        計算完成 ✅                   ║
@@ -477,10 +444,46 @@ def main():
   ║  SEPA 入選：{sepa_n:<5} 檔               ║
   ║  RS線新高 ：{high_n:<5} 檔               ║
   ║  🏆 最強  ：{top.get('code','')} {top.get('name',''):<8} RS {top.get('rs','')}    ║
-  ║  輸出檔案 ：{args.output:<28} ║
+  ║  輸出檔案 ：{output_path:<28} ║
   ║  檔案大小 ：{size_kb:.0f} KB                     ║
   ╚══════════════════════════════════════╝
 """)
+
+
+# ════════════════════════════════════════════════════════════════
+#  主程式
+# ════════════════════════════════════════════════════════════════
+def main():
+    args = parse_args()
+    tw_tz = timezone(timedelta(hours=8))
+    now   = datetime.now(tw_tz)
+
+    print("=" * 62)
+    print("  台股全市場 Minervini RS 計算器")
+    print(f"  {now.strftime('%Y-%m-%d %H:%M')} (台灣時間)")
+    print("=" * 62)
+
+    print(f"\n▶ [0/4] 載入收盤價快取...")
+    load_price_cache()
+
+    bench  = load_benchmark()
+
+    print(f"\n▶ [2/4] 抓取上市公司清單...")
+    stocks = fetch_twse_listed()
+
+    raw_results = run_parallel(stocks, bench, args.workers, args.verbose)
+
+    save_price_cache()
+    print(f"  ✓ 快取已儲存：{len(_price_cache)} 支股票")
+
+    if not raw_results:
+        print("  ❌ 沒有任何成功結果，中止")
+        sys.exit(1)
+
+    print(f"\n▶ [4/4] 換算百分位、判定 SEPA...")
+    final   = finalize_results(raw_results)
+    sectors = build_sectors(final)
+    write_output(final, sectors, now, args.output)
 
 
 if __name__ == "__main__":
