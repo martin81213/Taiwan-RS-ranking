@@ -142,6 +142,51 @@ def fetch_twse_listed() -> list[dict]:
 
 
 # ════════════════════════════════════════════════════════════════
+#  Step 1.5：從 TWSE 抓月營收年增率
+# ════════════════════════════════════════════════════════════════
+def fetch_revenue_yoy() -> dict[str, float]:
+    """
+    從 TWSE 月營收公告抓取當月營收年增率。
+    依序嘗試最近 3 個月，回傳 {code: yoy_pct}。
+    """
+    headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+    now_tw  = datetime.now(timezone(timedelta(hours=8)))
+
+    for delta in range(3):
+        year  = now_tw.year
+        month = now_tw.month - delta
+        if month <= 0:
+            month += 12
+            year  -= 1
+        date_str = f"{year}{month:02d}"
+        url = (f"https://www.twse.com.tw/rwd/zh/finance/t21sc03"
+               f"?date={date_str}&type=ALL&response=json")
+        try:
+            resp = requests.get(url, headers=headers, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+            if payload.get("stat") != "OK" or not payload.get("data"):
+                continue
+            result: dict[str, float] = {}
+            for row in payload["data"]:
+                code = str(row[0]).strip()
+                try:
+                    cur  = float(str(row[2]).replace(",", ""))
+                    prev = float(str(row[4]).replace(",", ""))
+                    if prev > 0:
+                        result[code] = round((cur / prev - 1) * 100, 1)
+                except (ValueError, IndexError):
+                    pass
+            print(f"  ✓ 月營收資料：{year}/{month:02d}，{len(result)} 檔")
+            return result
+        except Exception as e:
+            print(f"  ⚠ 月營收 {date_str} 抓取失敗：{e}")
+
+    print("  ⚠ 無法取得月營收資料，基本面條件略過")
+    return {}
+
+
+# ════════════════════════════════════════════════════════════════
 #  Step 2：下載收盤價
 # ════════════════════════════════════════════════════════════════
 def _fetch_yf(ticker: str, period: str, timeout: int = 20) -> pd.Series | None:
@@ -303,6 +348,9 @@ def process_stock(stock: dict, bench: pd.Series, verbose: bool = False) -> dict 
     rs_high  = calc_rs_line_high(close, bench)
     sepa_det = check_sepa(close)
 
+    rev_yoy = stock.get("rev_yoy")
+    sepa_det["rev_growth"] = (rev_yoy is not None and rev_yoy >= 10.0)
+
     time.sleep(SLEEP)
 
     shares = stock.get("shares", 0)
@@ -326,6 +374,7 @@ def process_stock(stock: dict, bench: pd.Series, verbose: bool = False) -> dict 
         c1m=rs_data["c1m"], c3m=rs_data["c3m"],
         price   = rs_data["price"],
         rsHigh  = rs_high,
+        rev_yoy = round(float(rev_yoy), 1) if rev_yoy is not None else None,
         sepa_detail = sepa_det,
     )
 
@@ -485,6 +534,11 @@ def main():
 
     print(f"\n▶ [2/4] 抓取上市公司清單...")
     stocks = fetch_twse_listed()
+
+    print(f"\n▶ [2.5/4] 抓取月營收年增率...")
+    rev_map = fetch_revenue_yoy()
+    for s in stocks:
+        s["rev_yoy"] = rev_map.get(s["code"])
 
     raw_results = run_parallel(stocks, bench, args.workers, args.verbose)
 

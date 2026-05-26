@@ -292,6 +292,7 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
           <th style="text-align:right">1日</th>
           <th style="text-align:right">1月</th>
           <th style="text-align:right">收盤價</th>
+          <th style="text-align:right">營收年增</th>
           <th>SEPA 條件</th>
           <th>板塊</th>
         </tr>
@@ -351,6 +352,7 @@ const SEPA_LABELS = {
   ma200_up:     '200MA向上',
   ma150_gt_200: '150MA>200MA',
   near_52w_high:'靠近52週高點',
+  rev_growth:   '營收年增≥10%',
 };
 
 async function fetchData() {
@@ -623,6 +625,7 @@ function renderSEPA() {
       <td class="td-num">${pct(s.c1)}</td>
       <td class="td-num">${pct(s.c1m)}</td>
       <td class="td-num" style="color:var(--text)">${s.price != null ? s.price.toFixed(2) : '—'}</td>
+      <td class="td-num" style="color:${s.rev_yoy==null?'var(--text3)':s.rev_yoy>=10?'var(--pos)':s.rev_yoy>=0?'var(--text)':'var(--neg)'}">${s.rev_yoy != null ? (s.rev_yoy > 0 ? '+' : '') + s.rev_yoy + '%' : '—'}</td>
       <td style="max-width:300px">${crits}</td>
       <td class="td-sector">${s.sector}</td>
     </tr>`;
