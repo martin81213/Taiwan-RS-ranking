@@ -162,7 +162,7 @@ footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 11p
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
 input[type=number] { -moz-appearance:textfield; appearance:textfield; }
-#history-chart { width:100%; height:220px; }
+#history-chart { width:100%; height:100%; }
 .modal-no-data { text-align:center; color:var(--text3); padding:40px 0; font-size:13px; }
 .tr-clickable { cursor:pointer; }
 .tr-clickable:hover td { background:var(--bg3) !important; }
