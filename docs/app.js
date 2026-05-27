@@ -431,10 +431,6 @@ const SECTOR_EMOJI = {
   '數位雲端':'☁️ ','運動休閒':'🏃','居家生活':'🏠','文化創意':'🎨','其他':'📦',
 };
 
-function updateExportBtn() {
-  const t = parseInt(document.getElementById('rs-threshold').value) || 90;
-  document.getElementById('tv-export-btn').textContent = `📥 下載 RS≥${t} 清單`;
-}
 
 function exportTV() {
   const threshold = parseInt(document.getElementById('rs-threshold').value) || 90;

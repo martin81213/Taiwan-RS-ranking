@@ -92,12 +92,13 @@
     <input type="text" id="search-input" placeholder="代號 / 名稱…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:var(--radius);font-size:12px;font-family:var(--font-ui);outline:none;width:130px;" oninput="onSearch()">
   </div>
   <div class="result-count" id="result-count"></div>
-  <div style="display:flex;align-items:center;gap:6px;margin-left:8px">
-    <span style="font-size:12px;color:var(--text2)">RS ≥</span>
+  <div class="pill" id="tv-export-btn" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-left:8px;" onclick="exportTV()">
+    <span>📥 下載 RS≥</span>
     <input id="rs-threshold" type="number" min="1" max="99" value="90"
-      style="width:46px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:var(--radius);padding:4px 6px;font-size:12px;font-family:var(--font-num);text-align:center;"
-      oninput="updateExportBtn()">
-    <button class="pill" id="tv-export-btn" onclick="exportTV()">📥 下載清單</button>
+      style="width:32px;background:transparent;border:none;border-bottom:1px solid currentColor;color:inherit;font-size:inherit;font-family:var(--font-num);text-align:center;padding:0 1px;outline:none;cursor:text;"
+      onclick="event.stopPropagation()"
+      oninput="event.stopPropagation()">
+    <span>清單</span>
   </div>
 </div>
 
