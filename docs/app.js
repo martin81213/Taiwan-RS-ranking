@@ -15,19 +15,19 @@ const SEPA_LABELS = {
 
 async function fetchData() {
   try {
-    const res = await fetch('rs_data.json?t=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const [dataRes, histRes] = await Promise.all([
+      fetch('rs_data.json?t=' + Date.now()),
+      fetch('rs_history.json?t=' + Date.now()).catch(() => ({ ok: false })),
+    ]);
+    if (!dataRes.ok) throw new Error('HTTP ' + dataRes.status);
+    const data = await dataRes.json();
     stocks = data.stocks || [];
     sectorFlowData = (data.sectors || []).map(s => ({
       name: s.name, c1: s.c1 ?? 0, c5: s.c5 ?? 0, c1m: s.c1m ?? 0,
       flow: s.flow ?? (s.avg_rs * 1.1), flow5: s.flow5 ?? 0,
       weeks: s.weeks || [],
     }));
-    fetch('rs_history.json?t=' + Date.now())
-      .then(r => r.ok ? r.json() : {})
-      .then(h => { rsHistory = h; })
-      .catch(() => {});
+    rsHistory = histRes.ok ? await histRes.json() : {};
     return { updatedAt: data.updated_at, live: true };
   } catch (e) {
     console.warn('rs_data.json 未找到，使用示意資料。請執行 rs_calculator.py', e.message);
@@ -135,6 +135,31 @@ function makeSvgSparkline(data, w, h) {
   </svg>`;
 }
 
+function computePrevRankMap() {
+  let latestDate = '';
+  for (const entries of Object.values(rsHistory)) {
+    if (entries.length && entries[entries.length - 1].date > latestDate) {
+      latestDate = entries[entries.length - 1].date;
+    }
+  }
+  if (!latestDate) return new Map();
+  const prevRS = [];
+  for (const [code, entries] of Object.entries(rsHistory)) {
+    const prev = [...entries].reverse().find(e => e.date < latestDate);
+    if (prev) prevRS.push({ code, rs: prev.rs });
+  }
+  prevRS.sort((a, b) => b.rs - a.rs);
+  return new Map(prevRS.map((s, i) => [s.code, i + 1]));
+}
+
+function rankDelta(curr, prev) {
+  if (prev == null) return `<span style="font-size:10px;color:var(--accent);font-family:var(--font-num)">NEW</span>`;
+  const d = prev - curr;
+  if (d === 0) return `<span style="color:var(--text3);font-family:var(--font-num);font-size:11px">—</span>`;
+  const color = d > 0 ? 'var(--pos)' : 'var(--neg)';
+  return `<span style="color:${color};font-family:var(--font-num);font-size:11px">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>`;
+}
+
 // ── STATE ─────────────────────────────────────────────────────
 let sortCol = 'rs', sortDir = -1;
 let filterCap = 'all', filterSector = 'all', filterRS = 0, searchQuery = '';
@@ -211,12 +236,14 @@ function renderTable() {
 
   const allByRS = [...stocks].sort((a,b) => b.rs - a.rs);
   const rankMap = new Map(allByRS.map((s, i) => [s.code, i + 1]));
+  const prevRankMap = computePrevRankMap();
 
   const tbody = document.getElementById('rs-tbody');
   tbody.innerHTML = slice.map((s) => {
     const rank = rankMap.get(s.code);
     return `<tr class="tr-clickable" onclick="showHistory('${s.code}','${s.name}')">
       <td class="td-rank">${rank}</td>
+      <td class="td-rank" style="width:40px;text-align:center">${rankDelta(rank, prevRankMap.get(s.code))}</td>
       <td class="td-code"><a href="${tvLink(s.code)}" target="_blank" onclick="event.stopPropagation()">${s.code}</a></td>
       <td class="td-name">${s.name}${s.sepa?` <span class="sepa-badge">SEPA</span>`:''}</td>
       <td class="td-num rs-cell">
@@ -523,15 +550,24 @@ function onSearch() {
 
 // ── VISITOR COUNTER ───────────────────────────────────────────
 (function fetchVisitors() {
-  fetch('https://martin.goatcounter.com/counter//.json')
-    .then(r => r.ok ? r.json() : null)
-    .then(d => {
-      const el = document.getElementById('visitor-count');
-      if (!el) return;
-      const n = d && d.count ? parseInt(d.count.replace(/,/g, ''), 10) : 0;
-      el.textContent = n.toLocaleString() + ' 次瀏覽';
-    })
-    .catch(() => {});
+  const wrap = document.getElementById('nav-visitors');
+  // GoatCounter counter API: path is the page path tracked by goatcounter
+  // If site is at /rs-ranking/, use that path; root path uses //
+  const paths = ['//rs-ranking/', '//'];
+  function tryPath(i) {
+    if (i >= paths.length) { if (wrap) wrap.style.display = 'none'; return; }
+    fetch(`https://martin.goatcounter.com/counter/${paths[i]}.json`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const el = document.getElementById('visitor-count');
+        if (!el) return;
+        if (!d || !d.count) { tryPath(i + 1); return; }
+        const n = parseInt(d.count.replace(/,/g, ''), 10);
+        el.textContent = n.toLocaleString() + ' 次瀏覽';
+      })
+      .catch(() => tryPath(i + 1));
+  }
+  tryPath(0);
 })();
 
 init();
