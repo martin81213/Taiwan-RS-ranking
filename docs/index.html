@@ -888,9 +888,12 @@ function showHistory(code, name) {
   const noData = document.getElementById('modal-no-data');
   const canvas = document.getElementById('history-chart');
 
-  if (!entries.length) {
+  if (entries.length < 2) {
     canvas.style.display = 'none';
     noData.style.display = 'block';
+    noData.textContent = entries.length === 0
+      ? '尚無歷史資料（明日計算後開始累積）'
+      : `資料累積中（目前 ${entries.length} 筆，需至少 2 個交易日）`;
   } else {
     canvas.style.display = 'block';
     noData.style.display = 'none';
