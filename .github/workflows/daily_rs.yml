@@ -20,6 +20,10 @@ on:
         description: "並行執行緒數（預設 12）"
         default: "12"
         required: false
+      backfill:
+        description: "強制回填歷史 RS（true/false）"
+        default: "false"
+        required: false
 
 permissions:
   contents: write   # 允許 commit rs_data.json 回 repo
@@ -80,7 +84,10 @@ jobs:
         if: steps.check_date.outputs.skip != 'true'
         run: |
           WORKERS=${{ github.event.inputs.workers || '12' }}
-          python rs_calculator.py --workers $WORKERS
+          BACKFILL=${{ github.event.inputs.backfill || 'false' }}
+          EXTRA=""
+          [ "$BACKFILL" = "true" ] && EXTRA="--backfill"
+          python rs_calculator.py --workers $WORKERS $EXTRA
         env:
           PYTHONUNBUFFERED: "1"
 
