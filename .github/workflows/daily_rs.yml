@@ -91,9 +91,11 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           cp docs/rs_data.json /tmp/rs_data_new.json
+          cp docs/rs_history.json /tmp/rs_history_new.json 2>/dev/null || true
           git fetch origin master
           git reset --hard origin/master
           cp /tmp/rs_data_new.json docs/rs_data.json
+          cp /tmp/rs_history_new.json docs/rs_history.json 2>/dev/null || true
           git add docs/rs_data.json docs/rs_history.json
           # 只有資料有變動才 commit
           git diff --staged --quiet || \

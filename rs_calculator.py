@@ -367,9 +367,11 @@ def build_sectors(results: list[dict]) -> list[dict]:
 # ════════════════════════════════════════════════════════════════
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--workers", type=int, default=WORKERS)
-    parser.add_argument("--output",  type=str, default=OUTPUT_FILE)
-    parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--workers",       type=int,  default=WORKERS)
+    parser.add_argument("--output",        type=str,  default=OUTPUT_FILE)
+    parser.add_argument("--verbose",       action="store_true")
+    parser.add_argument("--backfill",      action="store_true", help="強制回填歷史 RS")
+    parser.add_argument("--backfill-days", type=int,  default=180, help="回填天數")
     return parser.parse_args()
 
 
@@ -498,6 +500,70 @@ def save_history(final: list[dict], now: datetime):
     print(f"  ✓ 歷史記錄已更新：{HISTORY_FILE}（{len(history)} 支股票）")
 
 
+def backfill_history(bench: pd.Series, stock_list: list[dict], days: int = 180):
+    """用快取的價格資料回填過去 N 個交易日的 RS 歷史"""
+    print(f"\n▶ 歷史 RS 回填（過去 {days} 個交易日）...")
+
+    # 從快取收集所有股票的收盤價
+    all_closes: dict[str, pd.Series] = {}
+    for stock in stock_list:
+        code = stock["code"]
+        for suffix in [".TW", ".TWO"]:
+            ticker = f"{code}{suffix}"
+            with _cache_lock:
+                if ticker in _price_cache:
+                    all_closes[code] = _price_cache[ticker]
+                    break
+
+    print(f"  快取命中：{len(all_closes)} 支股票")
+
+    # 取基準指數過去 N 個交易日的日期
+    trade_dates = bench.index[-days:]
+    history: dict = {}
+
+    for i, date in enumerate(trade_dates):
+        date_str = date.strftime("%Y-%m-%d")
+        b_slice = bench.loc[:date]
+        if len(b_slice) < MIN_DAYS:
+            continue
+
+        # 對每支股票算 rs_raw
+        raw_list: list[tuple[str, float]] = []
+        for code, close in all_closes.items():
+            s_slice = close.loc[:date]
+            rs_data = calc_rs_raw(s_slice, b_slice)
+            if rs_data is not None:
+                raw_list.append((code, rs_data["rs_raw"]))
+
+        if not raw_list:
+            continue
+
+        # 百分位換算
+        codes = [x[0] for x in raw_list]
+        raws  = [x[1] for x in raw_list]
+        pcts  = raw_to_percentile(raws)
+
+        for code, rs in zip(codes, pcts):
+            if rs < HISTORY_MIN_RS:
+                continue
+            if code not in history:
+                history[code] = []
+            history[code].append({"date": date_str, "rs": rs})
+
+        if (i + 1) % 20 == 0 or i == len(trade_dates) - 1:
+            print(f"  {i + 1}/{len(trade_dates)} 日完成")
+
+    # 排序並寫入
+    for code in history:
+        history[code].sort(key=lambda x: x["date"])
+
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, separators=(",", ":"))
+
+    size_kb = os.path.getsize(HISTORY_FILE) / 1024
+    print(f"  ✓ 回填完成：{len(history)} 支股票 × {days} 天 → {HISTORY_FILE} ({size_kb:.0f} KB)")
+
+
 # ════════════════════════════════════════════════════════════════
 #  主程式
 # ════════════════════════════════════════════════════════════════
@@ -533,6 +599,10 @@ def main():
     sectors = build_sectors(final)
     write_output(final, sectors, now, args.output)
     save_history(final, now)
+
+    need_backfill = args.backfill or not os.path.exists(HISTORY_FILE)
+    if need_backfill:
+        backfill_history(bench, stocks, args.backfill_days)
 
 
 if __name__ == "__main__":
