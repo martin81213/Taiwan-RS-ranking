@@ -553,7 +553,7 @@ function onSearch() {
   const wrap = document.getElementById('nav-visitors');
   // GoatCounter counter API: path is the page path tracked by goatcounter
   // If site is at /rs-ranking/, use that path; root path uses //
-  const paths = ['//rs-ranking/', '//'];
+  const paths = ['//Taiwan-RS-ranking', '//'];
   function tryPath(i) {
     if (i >= paths.length) { if (wrap) wrap.style.display = 'none'; return; }
     fetch(`https://martin.goatcounter.com/counter/${paths[i]}.json`)
